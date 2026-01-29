@@ -4,10 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stickman Battles</title>
-    
     <style>
         body {
-            background-color: #222;
+            background-color: #1a1a1a;
             color: white;
             display: flex;
             flex-direction: column;
@@ -15,56 +14,67 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             overflow: hidden;
         }
 
         #game-stage {
-            width: 600px;
-            height: 300px;
-            border-bottom: 5px solid #555;
+            width: 800px;
+            height: 400px;
+            background: #333;
+            border-bottom: 8px solid #00ff88;
             position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
 
-        /* THE STICKMAN */
+        /* THE STICKMAN CONTAINER */
         #player {
-            width: 50px;
-            height: 80px;
+            width: 60px;
+            height: 100px;
             position: absolute;
             bottom: 0;
-            left: 100px;
-            transition: bottom 0.3s ease-out; /* For the jump */
+            left: 150px;
+            transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        /* 2. THE SPIN EFFECT */
-        .spin-kick {
-            animation: rotate360 0.5s linear;
+        /* STICKMAN VISUALS */
+        .head { width: 24px; height: 24px; border: 3px solid white; border-radius: 50%; margin: 0 auto; }
+        .body-line { width: 3px; height: 35px; background: white; margin: 0 auto; }
+        .arms { width: 50px; height: 3px; background: white; position: absolute; top: 35px; left: 5px; }
+        .legs { display: flex; justify-content: space-between; width: 40px; margin: 0 auto; }
+        .leg { width: 3px; height: 30px; background: white; transform: rotate(20deg); }
+        .leg.right { transform: rotate(-20deg); }
+
+        /* THE SPIN ANIMATION */
+        .spin-kick-anim {
+            animation: fullSpin 0.6s ease-in-out;
         }
 
-        @keyframes rotate360 {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+        @keyframes fullSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
-        /* Drawing the Stickman with CSS */
-        .head { width: 20px; height: 20px; border: 3px solid white; border-radius: 50%; margin: 0 auto; }
-        .body { width: 3px; height: 30px; background: white; margin: 0 auto; }
-        .arms { width: 40px; height: 3px; background: white; position: absolute; top: 30px; left: 5px; }
-        .legs { display: flex; justify-content: space-between; width: 30px; margin: 0 auto; }
-        .leg { width: 3px; height: 25px; background: white; transform: rotate(15deg); }
-        .leg.right { transform: rotate(-15deg); }
-
-        .controls { margin-top: 50px; }
-        button {
-            padding: 15px 30px;
-            font-size: 20px;
-            cursor: pointer;
-            background: #ff4757;
-            color: white;
+        /* CONTROLS */
+        .ui { margin-top: 30px; text-align: center; }
+        .btn-kick {
+            padding: 20px 40px;
+            font-size: 24px;
+            font-weight: bold;
+            text-transform: uppercase;
+            background: #00ff88;
+            color: #111;
             border: none;
-            border-radius: 5px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 5px 15px rgba(0,255,136,0.3);
         }
-        button:active { background: #ff6b81; }
+        .btn-kick:hover { transform: scale(1.1); background: #00db77; }
+        .btn-kick:active { transform: scale(0.95); }
+
+        .hint { color: #888; margin-top: 10px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -74,7 +84,7 @@
     <div id="game-stage">
         <div id="player">
             <div class="head"></div>
-            <div class="body"></div>
+            <div class="body-line"></div>
             <div class="arms"></div>
             <div class="legs">
                 <div class="leg"></div>
@@ -83,36 +93,48 @@
         </div>
     </div>
 
-    <div class="controls">
-        <button onclick="do360Kick()">360 KICK</button>
+    <div class="ui">
+        <button class="btn-kick" onclick="perform360()">360 KICK</button>
+        <div class="hint">Press Button to Jump, Spin, and Kick</div>
     </div>
 
     <script>
         const player = document.getElementById('player');
-        let isMoving = false;
+        let canAction = true;
 
-        function do360Kick() {
-            if (isMoving) return; // Prevent spamming
-            isMoving = true;
+        function perform360() {
+            if (!canAction) return;
+            canAction = false;
 
-            // 1. JUMP
-            player.style.bottom = "150px";
+            // 1. PHASE 1: JUMP UP
+            player.style.bottom = "180px";
+            
+            // 2. PHASE 2: ADD SPIN CLASS
+            player.classList.add('spin-kick-anim');
 
-            // 2. SPIN (Add class)
-            player.classList.add('spin-kick');
+            // 3. PHASE 3: KICK EFFECT (Mid-air)
+            setTimeout(() => {
+                console.log("Kick Impact Triggered!");
+                // You could add hit-detection here later
+            }, 300);
 
-            // 3. LAND AND RESET
+            // 4. PHASE 4: LANDING
             setTimeout(() => {
                 player.style.bottom = "0px";
                 
-                // Remove spin class after animation finishes
+                // Final Reset
                 setTimeout(() => {
-                    player.classList.remove('spin-kick');
-                    isMoving = false;
+                    player.classList.remove('spin-kick-anim');
+                    canAction = true;
                 }, 200);
-                
-            }, 300); // Time spent in air
+
+            }, 500); // Adjust this timing to change air-time
         }
+
+        // Keyboard Shortcut (Spacebar)
+        window.addEventListener('keydown', (e) => {
+            if (e.code === "Space") perform360();
+        });
     </script>
 </body>
 </html>
