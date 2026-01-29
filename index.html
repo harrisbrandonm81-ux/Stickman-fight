@@ -4,136 +4,180 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stickman Battles</title>
+    
     <style>
-        body {
-            background-color: #1a1a1a;
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            background: #0a0a0a; 
+            color: white; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+            font-family: 'Courier New', Courier, monospace;
             overflow: hidden;
         }
 
-        #game-stage {
+        #game-container {
             width: 800px;
             height: 400px;
-            background: #333;
-            border-bottom: 8px solid #00ff88;
+            background: #1a1a1a;
+            border: 4px solid #333;
+            border-bottom: 10px solid #00ff88;
             position: relative;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 0 50px rgba(0, 255, 136, 0.1);
         }
 
-        /* THE STICKMAN CONTAINER */
-        #player {
-            width: 60px;
-            height: 100px;
+        /* STICKMAN BASE STYLE */
+        .stickman {
             position: absolute;
             bottom: 0;
-            left: 150px;
+            width: 60px;
+            height: 100px;
             transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        /* STICKMAN VISUALS */
-        .head { width: 24px; height: 24px; border: 3px solid white; border-radius: 50%; margin: 0 auto; }
-        .body-line { width: 3px; height: 35px; background: white; margin: 0 auto; }
-        .arms { width: 50px; height: 3px; background: white; position: absolute; top: 35px; left: 5px; }
-        .legs { display: flex; justify-content: space-between; width: 40px; margin: 0 auto; }
-        .leg { width: 3px; height: 30px; background: white; transform: rotate(20deg); }
-        .leg.right { transform: rotate(-20deg); }
+        .head { width: 20px; height: 20px; border: 3px solid white; border-radius: 50%; margin: 0 auto; }
+        .torso { width: 3px; height: 35px; background: white; margin: 0 auto; }
+        .arm { width: 30px; height: 3px; background: white; position: absolute; top: 30px; }
+        .arm.left { left: 0; transform: rotate(-30deg); }
+        .arm.right { right: 0; transform: rotate(30deg); }
+        .leg { width: 3px; height: 30px; background: white; position: absolute; bottom: 10px; }
+        .leg.left { left: 20px; transform: rotate(15deg); }
+        .leg.right { right: 20px; transform: rotate(-15deg); }
 
-        /* THE SPIN ANIMATION */
-        .spin-kick-anim {
-            animation: fullSpin 0.6s ease-in-out;
+        /* PLAYER & ENEMY UNIQUE STYLES */
+        #player { left: 100px; z-index: 10; }
+        #enemy { right: 100px; transform: scaleX(-1); }
+        #enemy .head, #enemy .torso, #enemy .arm, #enemy .leg { border-color: #ff3e3e; background: #ff3e3e; }
+
+        /* 360 SPIN ANIMATION */
+        .spin-active {
+            animation: spin360 0.5s linear;
         }
 
-        @keyframes fullSpin {
+        @keyframes spin360 {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
 
-        /* CONTROLS */
-        .ui { margin-top: 30px; text-align: center; }
-        .btn-kick {
-            padding: 20px 40px;
-            font-size: 24px;
-            font-weight: bold;
-            text-transform: uppercase;
-            background: #00ff88;
-            color: #111;
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: 0.2s;
-            box-shadow: 0 5px 15px rgba(0,255,136,0.3);
-        }
-        .btn-kick:hover { transform: scale(1.1); background: #00db77; }
-        .btn-kick:active { transform: scale(0.95); }
+        /* UI ELEMENTS */
+        .hud { margin-bottom: 20px; width: 800px; display: flex; justify-content: space-between; }
+        .hp-bar { width: 300px; height: 20px; background: #333; border: 2px solid #555; overflow: hidden; }
+        .hp-fill { width: 100%; height: 100%; transition: width 0.3s; }
+        #player-hp { background: #00ff88; }
+        #enemy-hp { background: #ff3e3e; }
 
-        .hint { color: #888; margin-top: 10px; font-size: 14px; }
+        .controls { margin-top: 30px; }
+        .kick-btn {
+            padding: 15px 40px;
+            background: #00ff88;
+            color: black;
+            font-weight: bold;
+            font-size: 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #009e54;
+        }
+        .kick-btn:active { transform: translateY(4px); box-shadow: none; }
     </style>
 </head>
 <body>
 
-    <h1>STICKMAN BATTLES</h1>
+    <div class="hud">
+        <div>PLAYER <div class="hp-bar"><div id="player-hp" class="hp-fill"></div></div></div>
+        <div>ENEMY <div class="hp-bar"><div id="enemy-hp" class="hp-fill"></div></div></div>
+    </div>
 
-    <div id="game-stage">
-        <div id="player">
+    <div id="game-container">
+        <div id="player" class="stickman">
             <div class="head"></div>
-            <div class="body-line"></div>
-            <div class="arms"></div>
-            <div class="legs">
-                <div class="leg"></div>
-                <div class="leg right"></div>
-            </div>
+            <div class="torso"></div>
+            <div class="arm left"></div>
+            <div class="arm right"></div>
+            <div class="leg left"></div>
+            <div class="leg right"></div>
+        </div>
+
+        <div id="enemy" class="stickman">
+            <div class="head"></div>
+            <div class="torso"></div>
+            <div class="arm left"></div>
+            <div class="arm right"></div>
+            <div class="leg left"></div>
+            <div class="leg right"></div>
         </div>
     </div>
 
-    <div class="ui">
-        <button class="btn-kick" onclick="perform360()">360 KICK</button>
-        <div class="hint">Press Button to Jump, Spin, and Kick</div>
+    <div class="controls">
+        <button class="kick-btn" onclick="perform360Kick()">360 JUMP KICK</button>
     </div>
 
     <script>
         const player = document.getElementById('player');
+        const enemy = document.getElementById('enemy');
+        const enemyHPBar = document.getElementById('enemy-hp');
+        
         let canAction = true;
+        let enemyHP = 100;
 
-        function perform360() {
+        function perform360Kick() {
             if (!canAction) return;
             canAction = false;
 
-            // 1. PHASE 1: JUMP UP
+            // 1. JUMP UP
             player.style.bottom = "180px";
             
-            // 2. PHASE 2: ADD SPIN CLASS
-            player.classList.add('spin-kick-anim');
+            // 2. TRIGGER SPIN
+            player.classList.add('spin-active');
 
-            // 3. PHASE 3: KICK EFFECT (Mid-air)
+            // 3. DAMAGE DETECTION
             setTimeout(() => {
-                console.log("Kick Impact Triggered!");
-                // You could add hit-detection here later
+                checkCollision();
             }, 300);
 
-            // 4. PHASE 4: LANDING
+            // 4. LANDING SEQUENCE
             setTimeout(() => {
                 player.style.bottom = "0px";
                 
-                // Final Reset
                 setTimeout(() => {
-                    player.classList.remove('spin-kick-anim');
+                    player.classList.remove('spin-active');
                     canAction = true;
                 }, 200);
-
-            }, 500); // Adjust this timing to change air-time
+            }, 500);
         }
 
-        // Keyboard Shortcut (Spacebar)
+        function checkCollision() {
+            const pRect = player.getBoundingClientRect();
+            const eRect = enemy.getBoundingClientRect();
+
+            // Check if player is near enemy during the kick peak
+            const distance = Math.abs(pRect.left - eRect.left);
+            
+            if (distance < 250) {
+                // Enemy Take Damage
+                enemyHP -= 20;
+                if (enemyHP < 0) enemyHP = 0;
+                enemyHPBar.style.width = enemyHP + "%";
+
+                // Visual Feedback (Knockback)
+                enemy.style.transition = "right 0.1s";
+                enemy.style.right = "50px";
+                enemy.style.filter = "brightness(2)";
+
+                setTimeout(() => {
+                    enemy.style.right = "100px";
+                    enemy.style.filter = "none";
+                }, 150);
+            }
+        }
+
+        // Support Spacebar
         window.addEventListener('keydown', (e) => {
-            if (e.code === "Space") perform360();
+            if (e.code === "Space") perform360Kick();
         });
     </script>
 </body>
