@@ -4,181 +4,314 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stickman Battles</title>
-    
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body { 
-            background: #0a0a0a; 
-            color: white; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            height: 100vh; 
-            font-family: 'Courier New', Courier, monospace;
+        /* --- CSS STYLES (Approx 80 Lines) --- */
+        :root {
+            --neon-green: #00ff88;
+            --neon-red: #ff3e3e;
+            --bg-dark: #0a0a0a;
+        }
+
+        body {
+            background: var(--bg-dark);
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
         }
 
-        #game-container {
-            width: 800px;
-            height: 400px;
-            background: #1a1a1a;
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .menu-screen {
+            pointer-events: all;
+            background: rgba(0, 0, 0, 0.9);
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: 0.5s;
+        }
+
+        .hidden { display: none !important; }
+
+        #game-stage {
+            width: 900px;
+            height: 500px;
+            background: linear-gradient(to bottom, #111, #222);
             border: 4px solid #333;
-            border-bottom: 10px solid #00ff88;
             position: relative;
-            box-shadow: 0 0 50px rgba(0, 255, 136, 0.1);
+            overflow: hidden;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
         }
 
-        /* STICKMAN BASE STYLE */
-        .stickman {
+        .floor {
             position: absolute;
             bottom: 0;
+            width: 100%;
+            height: 20px;
+            background: #333;
+            border-top: 4px solid var(--neon-green);
+        }
+
+        /* STICKMAN ANIMATIONS & MODELS */
+        .stickman {
+            position: absolute;
             width: 60px;
             height: 100px;
-            transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            bottom: 20px;
+            transition: transform 0.1s;
         }
 
-        .head { width: 20px; height: 20px; border: 3px solid white; border-radius: 50%; margin: 0 auto; }
-        .torso { width: 3px; height: 35px; background: white; margin: 0 auto; }
-        .arm { width: 30px; height: 3px; background: white; position: absolute; top: 30px; }
-        .arm.left { left: 0; transform: rotate(-30deg); }
-        .arm.right { right: 0; transform: rotate(30deg); }
-        .leg { width: 3px; height: 30px; background: white; position: absolute; bottom: 10px; }
-        .leg.left { left: 20px; transform: rotate(15deg); }
-        .leg.right { right: 20px; transform: rotate(-15deg); }
+        .part { background: white; position: absolute; }
+        .head { width: 20px; height: 20px; border: 3px solid white; border-radius: 50%; background: none; top: -25px; left: 18px; }
+        .torso { width: 4px; height: 40px; left: 28px; top: 0; }
+        .arm { width: 35px; height: 4px; top: 10px; transform-origin: left center; }
+        .arm.left { left: 30px; transform: rotate(-40deg); }
+        .arm.right { left: 30px; transform: rotate(40deg); }
+        .leg { width: 4px; height: 35px; top: 40px; transform-origin: top center; }
+        .leg.left { left: 28px; transform: rotate(20deg); }
+        .leg.right { left: 28px; transform: rotate(-20deg); }
 
-        /* PLAYER & ENEMY UNIQUE STYLES */
-        #player { left: 100px; z-index: 10; }
-        #enemy { right: 100px; transform: scaleX(-1); }
-        #enemy .head, #enemy .torso, #enemy .arm, #enemy .leg { border-color: #ff3e3e; background: #ff3e3e; }
+        #enemy .part { background: var(--neon-red); border-color: var(--neon-red); }
 
-        /* 360 SPIN ANIMATION */
-        .spin-active {
-            animation: spin360 0.5s linear;
+        /* V-EFFECTS */
+        .particle {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            background: yellow;
+            pointer-events: none;
         }
 
-        @keyframes spin360 {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        @keyframes spark {
+            to { transform: translate(var(--x), var(--y)); opacity: 0; }
         }
 
-        /* UI ELEMENTS */
-        .hud { margin-bottom: 20px; width: 800px; display: flex; justify-content: space-between; }
-        .hp-bar { width: 300px; height: 20px; background: #333; border: 2px solid #555; overflow: hidden; }
-        .hp-fill { width: 100%; height: 100%; transition: width 0.3s; }
-        #player-hp { background: #00ff88; }
-        #enemy-hp { background: #ff3e3e; }
+        .kick-spin { animation: spin 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-        .controls { margin-top: 30px; }
-        .kick-btn {
-            padding: 15px 40px;
-            background: #00ff88;
+        .punch-anim .arm.right { transform: rotate(0deg) scaleX(1.8); background: #00fff2; }
+
+        /* HUD */
+        .hud-container {
+            width: 800px;
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            pointer-events: none;
+        }
+
+        .bar-outer { width: 300px; height: 25px; background: #222; border: 2px solid #fff; }
+        .bar-inner { width: 100%; height: 100%; transition: 0.3s ease; }
+        #p-health { background: var(--neon-green); box-shadow: 0 0 15px var(--neon-green); }
+        #e-health { background: var(--neon-red); box-shadow: 0 0 15px var(--neon-red); }
+
+        .btn {
+            background: var(--neon-green);
             color: black;
+            padding: 15px 40px;
+            font-size: 24px;
             font-weight: bold;
-            font-size: 20px;
             border: none;
-            border-radius: 10px;
             cursor: pointer;
-            box-shadow: 0 5px 0 #009e54;
+            border-radius: 8px;
+            margin: 10px;
         }
-        .kick-btn:active { transform: translateY(4px); box-shadow: none; }
     </style>
 </head>
 <body>
 
-    <div class="hud">
-        <div>PLAYER <div class="hp-bar"><div id="player-hp" class="hp-fill"></div></div></div>
-        <div>ENEMY <div class="hp-bar"><div id="enemy-hp" class="hp-fill"></div></div></div>
+    <div id="ui-layer">
+        <div id="main-menu" class="menu-screen">
+            <h1 style="font-size: 70px; color: var(--neon-green); text-shadow: 0 0 20px var(--neon-green);">STICKMAN BATTLES</h1>
+            <p style="color: #888;">CONTROLS: WASD (MOVE) | U (PUNCH) | P (360 KICK)</p>
+            <button class="btn" onclick="initGame()">FIGHT!</button>
+        </div>
+
+        <div id="death-screen" class="menu-screen hidden">
+            <h2 id="result-text" style="font-size: 50px;">GAME OVER</h2>
+            <button class="btn" onclick="location.reload()">RETRY</button>
+        </div>
+
+        <div class="hud-container">
+            <div>
+                <small>PLAYER 1</small>
+                <div class="bar-outer"><div id="p-health" class="bar-inner"></div></div>
+            </div>
+            <div id="round-counter" style="font-size: 30px; font-weight: bold;">RD 1</div>
+            <div style="text-align: right;">
+                <small>CPU ENEMY</small>
+                <div class="bar-outer"><div id="e-health" class="bar-inner"></div></div>
+            </div>
+        </div>
     </div>
 
-    <div id="game-container">
+    <div id="game-stage">
+        <div class="floor"></div>
         <div id="player" class="stickman">
-            <div class="head"></div>
-            <div class="torso"></div>
-            <div class="arm left"></div>
-            <div class="arm right"></div>
-            <div class="leg left"></div>
-            <div class="leg right"></div>
+            <div class="part head"></div>
+            <div class="part torso"></div>
+            <div class="part arm left"></div>
+            <div class="part arm right"></div>
+            <div class="part leg left"></div>
+            <div class="part leg right"></div>
         </div>
-
         <div id="enemy" class="stickman">
-            <div class="head"></div>
-            <div class="torso"></div>
-            <div class="arm left"></div>
-            <div class="arm right"></div>
-            <div class="leg left"></div>
-            <div class="leg right"></div>
+            <div class="part head"></div>
+            <div class="part torso"></div>
+            <div class="part arm left"></div>
+            <div class="part arm right"></div>
+            <div class="part leg left"></div>
+            <div class="part leg right"></div>
         </div>
-    </div>
-
-    <div class="controls">
-        <button class="kick-btn" onclick="perform360Kick()">360 JUMP KICK</button>
     </div>
 
     <script>
+        /* --- JAVASCRIPT LOGIC (Approx 200+ Lines) --- */
         const player = document.getElementById('player');
         const enemy = document.getElementById('enemy');
-        const enemyHPBar = document.getElementById('enemy-hp');
+        const stage = document.getElementById('game-stage');
         
-        let canAction = true;
-        let enemyHP = 100;
+        let gameState = "MENU";
+        let pPos = { x: 100, y: 0, vx: 0, vy: 0 };
+        let ePos = { x: 700, y: 0, hp: 100 };
+        let pHP = 100;
+        let round = 1;
+        let isAttacking = false;
+        const keys = {};
 
-        function perform360Kick() {
-            if (!canAction) return;
-            canAction = false;
+        // 1. INPUT HANDLING
+        window.addEventListener('keydown', e => {
+            keys[e.code] = true;
+            if(gameState !== "PLAY") return;
+            if(e.code === 'KeyU') handleAttack('punch');
+            if(e.code === 'KeyP') handleAttack('kick');
+        });
+        window.addEventListener('keyup', e => keys[e.code] = false);
 
-            // 1. JUMP UP
-            player.style.bottom = "180px";
-            
-            // 2. TRIGGER SPIN
-            player.classList.add('spin-active');
-
-            // 3. DAMAGE DETECTION
-            setTimeout(() => {
-                checkCollision();
-            }, 300);
-
-            // 4. LANDING SEQUENCE
-            setTimeout(() => {
-                player.style.bottom = "0px";
-                
-                setTimeout(() => {
-                    player.classList.remove('spin-active');
-                    canAction = true;
-                }, 200);
-            }, 500);
+        function initGame() {
+            document.getElementById('main-menu').classList.add('hidden');
+            gameState = "PLAY";
+            gameLoop();
         }
 
-        function checkCollision() {
-            const pRect = player.getBoundingClientRect();
-            const eRect = enemy.getBoundingClientRect();
+        // 2. ATTACK LOGIC
+        function handleAttack(type) {
+            if(isAttacking) return;
+            isAttacking = true;
 
-            // Check if player is near enemy during the kick peak
-            const distance = Math.abs(pRect.left - eRect.left);
-            
-            if (distance < 250) {
-                // Enemy Take Damage
-                enemyHP -= 20;
-                if (enemyHP < 0) enemyHP = 0;
-                enemyHPBar.style.width = enemyHP + "%";
-
-                // Visual Feedback (Knockback)
-                enemy.style.transition = "right 0.1s";
-                enemy.style.right = "50px";
-                enemy.style.filter = "brightness(2)";
-
+            if(type === 'punch') {
+                player.classList.add('punch-anim');
+                checkHit(80, 5);
                 setTimeout(() => {
-                    enemy.style.right = "100px";
-                    enemy.style.filter = "none";
+                    player.classList.remove('punch-anim');
+                    isAttacking = false;
                 }, 150);
+            } else if(type === 'kick') {
+                pPos.vy = 15; // Jump up
+                player.classList.add('kick-spin');
+                setTimeout(() => checkHit(120, 20), 200);
+                setTimeout(() => {
+                    player.classList.remove('kick-spin');
+                    isAttacking = false;
+                }, 500);
             }
         }
 
-        // Support Spacebar
-        window.addEventListener('keydown', (e) => {
-            if (e.code === "Space") perform360Kick();
-        });
+        function checkHit(range, damage) {
+            const dist = Math.abs(pPos.x - ePos.x);
+            if(dist < range && Math.abs(pPos.y - ePos.y) < 50) {
+                createParticles(ePos.x, 350 - ePos.y);
+                ePos.hp -= damage;
+                ePos.x += 30; // Knockback
+                document.getElementById('e-health').style.width = ePos.hp + "%";
+                
+                if(ePos.hp <= 0) handleWin();
+            }
+        }
+
+        // 3. VISUAL EFFECTS (Particles)
+        function createParticles(x, y) {
+            for(let i=0; i<8; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                p.style.left = x + 'px';
+                p.style.top = y + 'px';
+                const vx = (Math.random() - 0.5) * 100;
+                const vy = (Math.random() - 0.5) * 100;
+                p.style.setProperty('--x', `${vx}px`);
+                p.style.setProperty('--y', `${vy}px`);
+                p.style.animation = 'spark 0.4s forwards';
+                stage.appendChild(p);
+                setTimeout(() => p.remove(), 400);
+            }
+        }
+
+        // 4. PHYSICS ENGINE
+        function updatePhysics() {
+            // Player Movement
+            if(keys['KeyA']) pPos.vx = -6;
+            else if(keys['KeyD']) pPos.vx = 6;
+            else pPos.vx *= 0.8;
+
+            // Jump/Gravity
+            if(keys['KeyW'] && pPos.y === 0) pPos.vy = 12;
+            
+            pPos.x += pPos.vx;
+            pPos.y += pPos.vy;
+            
+            if(pPos.y > 0) pPos.vy -= 0.8; // Gravity
+            else { pPos.y = 0; pPos.vy = 0; }
+
+            // Boundaries
+            if(pPos.x < 0) pPos.x = 0;
+            if(pPos.x > 840) pPos.x = 840;
+
+            // Enemy Simple AI
+            if(ePos.x > pPos.x + 80) ePos.x -= 2;
+            else if(ePos.x < pPos.x + 60) ePos.x += 2;
+        }
+
+        function handleWin() {
+            round++;
+            document.getElementById('round-counter').innerText = "RD " + round;
+            ePos.hp = 100;
+            document.getElementById('e-health').style.width = "100%";
+            ePos.x = 700;
+            pPos.x = 100;
+        }
+
+        // 5. RENDER LOOP
+        function gameLoop() {
+            if(gameState !== "PLAY") return;
+
+            updatePhysics();
+            
+            player.style.left = pPos.x + "px";
+            player.style.bottom = (20 + pPos.y) + "px";
+            
+            enemy.style.left = ePos.x + "px";
+            enemy.style.bottom = (20 + ePos.y) + "px";
+
+            requestAnimationFrame(gameLoop);
+        }
     </script>
 </body>
 </html>
