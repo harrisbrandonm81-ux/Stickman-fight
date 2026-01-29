@@ -2,265 +2,117 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Stickman Brawler: Full Script</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stickman Battles</title>
+    
     <style>
-        body { margin: 0; background: #050505; display: flex; justify-content: center; align-items: center; height: 100vh; color: white; font-family: 'Arial Black', sans-serif; overflow: hidden; }
-        canvas { border: 5px solid #222; background: #fafafa; display: none; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
-        #menu, #winScreen { text-align: center; background: #111; padding: 40px; border-radius: 20px; border: 4px solid #ff4757; position: absolute; z-index: 200; }
-        button { padding: 15px 40px; font-size: 24px; cursor: pointer; background: #ff4757; border: none; color: white; border-radius: 8px; font-weight: bold; transition: 0.2s; }
-        button:hover { background: #ff6b81; transform: scale(1.1); }
-        #ui { position: absolute; top: 30px; width: 900px; display: none; justify-content: space-between; font-size: 30px; pointer-events: none; }
-        .round-indicator { color: #ff4757; font-size: 100px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; pointer-events: none; z-index: 100; text-shadow: 4px 4px #000; }
-        .score-box { background: rgba(0,0,0,0.85); padding: 10px 20px; border-radius: 10px; border: 2px solid #ff4757; }
+        body {
+            background-color: #222;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        #game-stage {
+            width: 600px;
+            height: 300px;
+            border-bottom: 5px solid #555;
+            position: relative;
+        }
+
+        /* THE STICKMAN */
+        #player {
+            width: 50px;
+            height: 80px;
+            position: absolute;
+            bottom: 0;
+            left: 100px;
+            transition: bottom 0.3s ease-out; /* For the jump */
+        }
+
+        /* 2. THE SPIN EFFECT */
+        .spin-kick {
+            animation: rotate360 0.5s linear;
+        }
+
+        @keyframes rotate360 {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Drawing the Stickman with CSS */
+        .head { width: 20px; height: 20px; border: 3px solid white; border-radius: 50%; margin: 0 auto; }
+        .body { width: 3px; height: 30px; background: white; margin: 0 auto; }
+        .arms { width: 40px; height: 3px; background: white; position: absolute; top: 30px; left: 5px; }
+        .legs { display: flex; justify-content: space-between; width: 30px; margin: 0 auto; }
+        .leg { width: 3px; height: 25px; background: white; transform: rotate(15deg); }
+        .leg.right { transform: rotate(-15deg); }
+
+        .controls { margin-top: 50px; }
+        button {
+            padding: 15px 30px;
+            font-size: 20px;
+            cursor: pointer;
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:active { background: #ff6b81; }
     </style>
 </head>
 <body>
 
-    <div id="menu">
-        <h1 style="font-size: 50px; margin: 0 0 20px 0;">STICKMAN COMBAT</h1>
-        <button onclick="startGame()">START MATCH</button>
-        <div style="color: #666; margin-top: 20px;">WASD: Move | J: Punch | K: Kick | P: 360 KICK</div>
+    <h1>STICKMAN BATTLES</h1>
+
+    <div id="game-stage">
+        <div id="player">
+            <div class="head"></div>
+            <div class="body"></div>
+            <div class="arms"></div>
+            <div class="legs">
+                <div class="leg"></div>
+                <div class="leg right"></div>
+            </div>
+        </div>
     </div>
 
-    <div id="ui">
-        <div class="score-box" id="p1Score">P1: 0</div>
-        <div class="score-box" id="roundText">ROUND 1</div>
-        <div class="score-box" id="cpuScore">CPU: 0</div>
+    <div class="controls">
+        <button onclick="do360Kick()">360 KICK</button>
     </div>
 
-    <div id="roundPop" class="round-indicator">ROUND 1</div>
+    <script>
+        const player = document.getElementById('player');
+        let isMoving = false;
 
-    <div id="winScreen" style="display:none;">
-        <h1 id="winText" style="font-size: 60px;"></h1>
-        <button onclick="location.reload()">REMATCH</button>
-    </div>
+        function do360Kick() {
+            if (isMoving) return; // Prevent spamming
+            isMoving = true;
 
-    <canvas id="gameCanvas"></canvas>
+            // 1. JUMP
+            player.style.bottom = "150px";
 
-<script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const ui = document.getElementById('ui');
-const roundPop = document.getElementById('roundPop');
+            // 2. SPIN (Add class)
+            player.classList.add('spin-kick');
 
-canvas.width = 1000;
-canvas.height = 500;
-const gravity = 0.8;
-
-let p1Score = 0;
-let cpuScore = 0;
-let currentRound = 1;
-let shakeTime = 0;
-let gameActive = false;
-
-class Fighter {
-    constructor({ position, color, isCPU = false, facing = 1 }) {
-        this.startPos = { ...position };
-        this.position = { ...position };
-        this.velocity = { x: 0, y: 0 };
-        this.width = 50;
-        this.height = 150;
-        this.color = color;
-        this.health = 100;
-        this.isAttacking = false;
-        this.attackType = '';
-        this.isCPU = isCPU;
-        this.frame = 0; 
-        this.facing = facing;
-        this.isKnockedDown = false;
-    }
-
-    draw() {
-        this.frame += 0.2;
-        const x = this.position.x + this.width / 2;
-        const y = this.position.y;
-        const isMoving = Math.abs(this.velocity.x) > 0.1;
-        const isJumping = this.position.y < canvas.height - 175;
-
-        ctx.save();
-        ctx.translate(x, y);
-        if (this.isKnockedDown) ctx.rotate(Math.PI / 2 * this.facing);
-        else ctx.scale(this.facing, 1);
-        ctx.translate(-x, -y);
-
-        ctx.strokeStyle = this.color;
-        ctx.lineWidth = 6;
-        ctx.lineCap = 'round';
-
-        // Head
-        ctx.beginPath(); ctx.arc(x, y + 30, 18, 0, Math.PI * 2); ctx.stroke();
-        // Spine
-        ctx.beginPath(); ctx.moveTo(x, y + 48); ctx.lineTo(x, y + 100); ctx.stroke();
-
-        // Arms
-        ctx.beginPath();
-        if (this.isAttacking && this.attackType === '360') {
-            ctx.moveTo(x - 55, y + 60); ctx.lineTo(x + 55, y + 60); // FULL T-POSE
-        } else if (this.isAttacking && this.attackType === 'punch') {
-            ctx.moveTo(x, y + 60); ctx.lineTo(x + 65, y + 60);
-        } else if (isJumping) {
-            ctx.moveTo(x, y + 60); ctx.lineTo(x - 30, y + 30);
-            ctx.moveTo(x, y + 60); ctx.lineTo(x + 30, y + 30);
-        } else {
-            let swing = isMoving ? Math.sin(this.frame) * 35 : 0;
-            ctx.moveTo(x, y + 60); ctx.lineTo(x - 25 + swing, y + 95);
-            ctx.moveTo(x, y + 60); ctx.lineTo(x + 25 - swing, y + 95);
+            // 3. LAND AND RESET
+            setTimeout(() => {
+                player.style.bottom = "0px";
+                
+                // Remove spin class after animation finishes
+                setTimeout(() => {
+                    player.classList.remove('spin-kick');
+                    isMoving = false;
+                }, 200);
+                
+            }, 300); // Time spent in air
         }
-        ctx.stroke();
-
-        // Legs
-        ctx.beginPath();
-        ctx.moveTo(x, y + 100);
-        if (this.isAttacking && this.attackType === '360') {
-            ctx.lineTo(x + 75, y + 100); // Pointing Leg
-            ctx.moveTo(x, y + 100); ctx.lineTo(x - 25, y + 125); ctx.lineTo(x + 5, y + 130); // Bending Leg
-        } else if (this.isAttacking && this.attackType === 'kick') {
-            ctx.lineTo(x + 65, y + 110);
-        } else {
-            let swing = isMoving ? Math.sin(this.frame) * 45 : 0;
-            ctx.lineTo(x + swing, y + 150);
-            ctx.moveTo(x, y + 100); ctx.lineTo(x - swing, y + 150);
-        }
-        ctx.stroke();
-        ctx.restore();
-
-        // Health Bar UI
-        if (!this.isKnockedDown) {
-            ctx.fillStyle = '#333'; ctx.fillRect(this.position.x - 10, y - 25, 70, 10);
-            ctx.fillStyle = this.color; ctx.fillRect(this.position.x - 10, y - 25, (this.health / 100) * 70, 10);
-        }
-    }
-
-    update() {
-        this.draw();
-        if (this.isKnockedDown || !gameActive) return;
-
-        if (this.isCPU) {
-            const dist = player.position.x - this.position.x;
-            this.facing = dist > 0 ? 1 : -1;
-            if (Math.abs(dist) > 90) this.velocity.x = dist > 0 ? 3.5 : -3.5;
-            else {
-                this.velocity.x = 0;
-                let brain = Math.random();
-                if (brain < 0.05) this.attack(brain < 0.01 ? '360' : (brain < 0.03 ? 'kick' : 'punch'));
-            }
-        }
-
-        this.position.x += this.velocity.x;
-        this.position.y += this.velocity.y;
-
-        if (this.position.y + this.height + this.velocity.y >= canvas.height - 20) {
-            this.velocity.y = 0;
-            this.position.y = canvas.height - 20 - this.height;
-        } else this.velocity.y += gravity;
-
-        if (this.position.x < 0) this.position.x = 0;
-        if (this.position.x > canvas.width - this.width) this.position.x = canvas.width - this.width;
-    }
-
-    attack(type) {
-        if (this.isAttacking || this.isKnockedDown || !gameActive) return;
-        this.isAttacking = true;
-        this.attackType = type;
-        
-        const target = this.isCPU ? player : enemy;
-        const range = type === '360' ? 115 : 85;
-        const dmg = type === '360' ? 25 : (type === 'kick' ? 12 : 7);
-
-        setTimeout(() => {
-            const front = (this.facing === 1 && target.position.x > this.position.x) || (this.facing === -1 && target.position.x < this.position.x);
-            if (front && Math.abs(this.position.x - target.position.x) < range && Math.abs(this.position.y - target.position.y) < 100) {
-                target.health -= dmg;
-                if (type === '360') shakeTime = 15;
-                if (target.health <= 0) handleDeath(target);
-            }
-            this.isAttacking = false;
-        }, 150);
-    }
-
-    reset() {
-        this.health = 100;
-        this.isKnockedDown = false;
-        this.position = { ...this.startPos };
-        this.velocity = { x: 0, y: 0 };
-    }
-}
-
-const player = new Fighter({ position: { x: 150, y: 0 }, color: '#3498db' });
-const enemy = new Fighter({ position: { x: 800, y: 0 }, color: '#e74c3c', isCPU: true, facing: -1 });
-
-function handleDeath(victim) {
-    gameActive = false;
-    victim.isKnockedDown = true;
-    victim === player ? cpuScore++ : p1Score++;
-    updateUI();
-    setTimeout(() => {
-        if (currentRound < 3) {
-            currentRound++;
-            startNextRound();
-        } else endMatch();
-    }, 2000);
-}
-
-function startNextRound() {
-    player.reset(); enemy.reset();
-    roundPop.innerText = "ROUND " + currentRound;
-    roundPop.style.display = "block";
-    document.getElementById('roundText').innerText = "ROUND " + currentRound;
-    setTimeout(() => { roundPop.style.display = "none"; gameActive = true; }, 1500);
-}
-
-function updateUI() {
-    document.getElementById('p1Score').innerText = `P1: ${p1Score}`;
-    document.getElementById('cpuScore').innerText = `CPU: ${cpuScore}`;
-}
-
-function endMatch() {
-    document.getElementById('winScreen').style.display = 'block';
-    let winMsg = p1Score > cpuScore ? "P1 DOMINATES!" : (cpuScore > p1Score ? "CPU DOMINATES!" : "IT'S A DRAW!");
-    document.getElementById('winText').innerText = winMsg;
-    canvas.style.display = 'none'; ui.style.display = 'none';
-}
-
-const keys = { a: false, d: false };
-
-function animate() {
-    ctx.save();
-    if (shakeTime > 0) { ctx.translate(Math.random()*12-6, Math.random()*12-6); shakeTime--; }
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#222'; ctx.fillRect(0, canvas.height - 20, canvas.width, 20);
-    player.update(); enemy.update();
-    ctx.restore();
-    if (gameActive) {
-        player.velocity.x = 0;
-        if (keys.a) { player.velocity.x = -7; player.facing = -1; }
-        if (keys.d) { player.velocity.x = 7; player.facing = 1; }
-    }
-    requestAnimationFrame(animate);
-}
-
-function startGame() {
-    document.getElementById('menu').style.display = 'none';
-    canvas.style.display = 'block'; ui.style.display = 'flex';
-    currentRound = 1; p1Score = 0; cpuScore = 0;
-    updateUI(); startNextRound(); animate();
-}
-
-window.addEventListener('keydown', (e) => {
-    const k = e.key.toLowerCase();
-    if (k === 'a') keys.a = true;
-    if (k === 'd') keys.d = true;
-    if ((k === 'w' || k === ' ') && player.velocity.y === 0 && gameActive) player.velocity.y = -20;
-    if (k === 'j') player.attack('punch');
-    if (k === 'k') player.attack('kick');
-    if (k === 'p') player.attack('360');
-});
-
-window.addEventListener('keyup', (e) => {
-    const k = e.key.toLowerCase();
-    if (k === 'a') keys.a = false;
-    if (k === 'd') keys.d = false;
-});
-</script>
+    </script>
 </body>
 </html>
